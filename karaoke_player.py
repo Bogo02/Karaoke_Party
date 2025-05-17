@@ -5,12 +5,11 @@ import os
 import time
 import threading
 import re
-import pyaudio
-import numpy as np
+import pyaudio  
+import numpy as np  
 
 TRACKS_FOLDER = r"D:\faculta\Karaoke Party\Tracks"
 
-# Parse Lyrics File
 def parse_lrc(file_path):
     lyrics = []
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -26,7 +25,6 @@ def parse_lrc(file_path):
                     continue
     return lyrics
 
-# App Class
 class KaraokeApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -49,8 +47,6 @@ class KaraokeApp(tk.Tk):
         self.karaoke_frame.load_song(song_folder)
         self.karaoke_frame.pack(fill="both", expand=True)
 
-
-# Menu Frame
 class MenuFrame(tk.Frame):
     def __init__(self, master):
         super().__init__(master, bg='white')
@@ -72,8 +68,6 @@ class MenuFrame(tk.Frame):
                     play_button = tk.Button(song_box, text="▶️ Play", command=lambda folder=folder_name: self.master.show_karaoke(folder))
                     play_button.pack(side="right", padx=10)
 
-
-# Karaoke Frame
 class KaraokeFrame(tk.Frame):
     def __init__(self, master):
         super().__init__(master, bg='white')
@@ -86,10 +80,10 @@ class KaraokeFrame(tk.Frame):
         self.page_duration=5
 
         # PITCH BOXES DISPLAY
-        self.canvas= tk.Canvas(self, width=1000,height=500, bg="white", highlightthickness=0)
+        self.canvas = tk.Canvas(self, width=1000, height=500, bg="white", highlightthickness=0)
         self.canvas.pack(padx=10)
-        self.page_duration=4
-        self.current_page=0
+        self.page_duration = 4
+        self.current_page = 0
 
         # LYRICS Display at Bottom
         self.lyrics_label = tk.Label(self, text="", font=("Arial", 28), bg="white", wraplength=800)
@@ -99,14 +93,15 @@ class KaraokeFrame(tk.Frame):
         self.controls_frame = tk.Frame(self, bg="white")
         self.controls_frame.pack(side="bottom", pady=20)
 
-        #self.stop_button = tk.Button(self.controls_frame, text="Stop", font=("Arial", 16), command=self.stop_song)
-        #self.stop_button.pack(side="left", padx=20)
-
         self.back_button = tk.Button(self.controls_frame, text="Back to Menu", font=("Arial", 14), command=self.back_to_menu)
         self.back_button.pack(side="left", padx=20)
 
+        # MIC VARIABLES 
+        self.latest_pitch = 0
+        self.mic_thread = None  
+        self.mic_running = False   
+
     def load_song(self, song_folder):
-        
         folder_path = os.path.join(TRACKS_FOLDER, song_folder)
         audio_file = None
         lrc_file = None
@@ -132,10 +127,16 @@ class KaraokeFrame(tk.Frame):
         pygame.mixer.music.load(audio_path)
         pygame.mixer.music.play()
         self.playing = True
+
+        self.mic_running = True  
+        self.mic_thread = threading.Thread(target=self.listen_to_mic)  
+        self.mic_thread.start()  
+
         threading.Thread(target=self.update_lyrics_and_pitch).start()
 
     def stop_song(self):
         self.playing = False
+        self.mic_running = False  
         pygame.mixer.music.stop()
         self.lyrics_label.config(text="")
 
@@ -150,46 +151,50 @@ class KaraokeFrame(tk.Frame):
         canvas_height = 500
         pitch_min = 50
         pitch_max = 500
-        page_duration=self.page_duration
-        
-        current_page_start=1
+        page_duration = self.page_duration
+
+        current_page_start = 1
 
         while self.playing:
             elapsed = time.time() - start_time
 
-            # Update lyrics
             if self.current_line < len(self.lyrics):
                 timestamp, text = self.lyrics[self.current_line]
                 if elapsed >= timestamp:
                     self.lyrics_label.config(text=text)
                     self.current_line += 1
 
-            # Pitch page
-            page_start= math.floor(elapsed / page_duration)* page_duration
-            page_end= page_start + page_duration
+            page_start = math.floor(elapsed / page_duration) * page_duration
+            page_end = page_start + page_duration
 
-            if page_start !=current_page_start:
+            if page_start != current_page_start:
                 current_page_start = page_start
                 self.canvas.delete("all")
-
-            # Update pitch
-           # self.canvas.delete("all")
-           # window_start = elapsed - 2
-           # window_end = elapsed + 2
-           # time_range = window_end - window_start
 
             for seg_start, seg_end, pitch in self.pitch_segments:
                 if seg_end < page_start or seg_start > page_end:
                     continue
-                seg_start_clipped = max(seg_start, page_start)
-                seg_end_clipped= max(seg_end, page_end)
-                x1 = ((seg_start - page_start) / page_duration) * canvas_width
-                x2 = ((seg_end - page_start) / page_duration) * canvas_width
-                y = canvas_height - ((pitch - pitch_min) / (pitch_max - pitch_min)) * canvas_height
-                self.canvas.create_rectangle(x1, y - 10, x2, y + 10, fill="white", outline="black")
 
-            # Draw lightblue playhead
-            # self.canvas.create_line(canvas_width // 2, 0, canvas_width // 2, canvas_height, fill="lightblue", width=2)
+                seg_start_clipped = max(seg_start, page_start)
+                seg_end_clipped = min(seg_end, page_end)
+
+                x1 = ((seg_start_clipped - page_start) / page_duration) * canvas_width
+                x2 = ((seg_end_clipped - page_start) / page_duration) * canvas_width
+                y = canvas_height - ((pitch - pitch_min) / (pitch_max - pitch_min)) * canvas_height
+
+                box_color = "white"  # Default color
+
+                if seg_start_clipped <= elapsed <= seg_end_clipped:  
+                    diff = abs(self.latest_pitch - pitch)  
+                    if diff <= 5:  
+                        box_color = "green"  
+                    elif diff <= 20:  
+                        box_color = "yellow"  
+                    else:  
+                        box_color = "red"  
+
+                self.canvas.create_rectangle(x1, y - 10, x2, y + 10, fill=box_color, outline="black")
+
             playhead_x = ((elapsed - page_start) / page_duration) * canvas_width
             self.canvas.delete("playhead")
             self.canvas.create_line(playhead_x , 0 , playhead_x , canvas_height, fill="lightblue", width=2, tags="playhead")
@@ -214,8 +219,49 @@ class KaraokeFrame(tk.Frame):
                     pitch = float(pitch_str)
                     segments.append((start, end, pitch))
         return segments
+        
+    def listen_to_mic(self):   
+        FORMAT = pyaudio.paInt16  # 16-bit audio
+        CHANNELS = 1  # Mono audio
+        RATE = 44100  # Sampling rate (CD quality)
+        BUFFER_SIZE = 1024  # Frames per buffer (audio chunk size) 
 
-# Run the App
+        p = pyaudio.PyAudio()  
+
+        def detect_pitch(audio_data, rate):   
+            fft_spectrum = np.fft.fft(audio_data)   
+            freqs = np.fft.fftfreq(len(fft_spectrum), d=1 / rate)  
+
+            magnitude = np.abs(fft_spectrum)  
+
+            peak_index = np.argmax(magnitude[:len(magnitude) // 2])   
+            return abs(freqs[peak_index])  
+
+        def callback(in_data, frame_count, time_info, status):   
+            if not self.mic_running:  
+                return (in_data, pyaudio.paComplete)  
+
+            audio_data = np.frombuffer(in_data, dtype=np.int16)  
+            pitch = detect_pitch(audio_data, RATE)  
+            if pitch > 50:  
+                self.latest_pitch = pitch   
+            else:  
+                self.latest_pitch = 0
+            return (in_data, pyaudio.paContinue)  
+
+        stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE,   
+                        input=True, frames_per_buffer=BUFFER_SIZE,   
+                        stream_callback=callback)  
+        stream.start_stream()  
+
+        while self.mic_running and stream.is_active():   
+            time.sleep(0.1)  
+
+        stream.stop_stream()  
+        stream.close()  
+        p.terminate()   
+
+
 if __name__ == "__main__":
     app = KaraokeApp()
     app.mainloop()
