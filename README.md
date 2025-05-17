@@ -1,2 +1,2 @@
 # Karaoke_Party
-Karaoke app repository
+Karaoke Party is a final project for uni
