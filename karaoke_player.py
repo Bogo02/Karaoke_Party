@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image, ImageTk
 import sqlite3
 
-TRACKS_FOLDER = r"D:\faculta\Karaoke Party\Tracks"
+TRACKS_FOLDER = os.path.join(os.path.dirname(__file__), "Tracks")
 
 def parse_lrc(file_path):
     lyrics = []
@@ -53,8 +53,8 @@ def save_score(song_name, score, master):
         if name:
             conn = sqlite3.connect('leaderboard.db')
             c = conn.cursor()
-            c.execute('INSERT INTO leaderboard (song_name, player_name, score) VALUES (?,?,?,?)', (song_name, name, score))
-            c.commit()
+            c.execute('INSERT INTO leaderboard (song_name, player_name, score) VALUES (?,?,?)', (song_name, name, score))
+            conn.commit()
             c.close()
             popup.destroy()
     
@@ -77,7 +77,7 @@ create_db()
 class KaraokeApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Karaoke Player")
+        self.title("Karaoke Party")
         self.geometry("1240x800")
 
         pygame.mixer.init()
@@ -101,12 +101,13 @@ class KaraokeApp(tk.Tk):
 
     def show_karaoke(self, song_folder):
         self.menu_frame.pack_forget()
+        self.score_frame.pack_forget()
         self.karaoke_frame.load_song(song_folder)
         self.karaoke_frame.pack(fill="both", expand=True)
 
 class MenuFrame(tk.Frame):
     def __init__(self, master):
-        super().__init__(master, bg='white')
+        super().__init__(master, bg='Lavender')
         self.master = master
         self.load_song_list()
 
@@ -117,7 +118,7 @@ class MenuFrame(tk.Frame):
             if os.path.isdir(folder_path):
                 files = os.listdir(folder_path)
                 if any(f.endswith(('.mp3','.m4a')) for f in files) and any(f.endswith('.lrc') for f in files):
-                    song_box = tk.Frame(self, bg='white', highlightbackground="black", highlightthickness=1)
+                    song_box = tk.Frame(self, bg='Lavender', highlightbackground="black", highlightthickness=1)
                     song_box.pack(pady=10, padx=20, fill="x")
 
                     image_file=  next((f for f in files if f.lower().endswith((".jpeg",".png"))),None) 
@@ -130,7 +131,7 @@ class MenuFrame(tk.Frame):
                         img_label = tk.Label(song_box, image=photo, bg='white') 
                         img_label.pack(side="left", padx=10)  
                     
-                    label = tk.Label(song_box, text=folder_name, font=("Arial", 18), bg="white", anchor="w")
+                    label = tk.Label(song_box, text=folder_name, font=("Arial", 18), bg="Lavender", anchor="w")
                     label.pack(side="left", padx=10, pady=10)
 
                     play_button = tk.Button(song_box, text="▶️ Play", command=lambda folder=folder_name: self.master.show_karaoke(folder))
