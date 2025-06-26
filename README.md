@@ -1,2 +1,2 @@
 # Karaoke_Party
-Karaoke Party is a final project for uni
+Karaoke Party is an application developed using Python its libraries,
