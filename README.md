@@ -27,6 +27,7 @@ The following libraries are used in the application:
 - messagebox
 - Image
 - ImageTk
+
 Out of these, the following libraries are not implicitly included in Python and have to be separately installed:
 - pygame
 - pyaudio
@@ -43,18 +44,31 @@ They can be installed with the command: pip install pygame pyaudio numpy pillow
 
 ## Project structure
   Karaoke Party/
+  
   ├── build             # Build folder for the executable file
+  
   ├── Karaoke Party.py  # Main file
+  
   ├── Karaoke Party.exe # Executable file
+  
   ├── Karaoke Party.spec
+  
   ├── Tracks/           # Audio + Lyrics + Pitch files
+  
   │   └── [Song_name]/  # Each song has a folder
+  
   │   ├── song.mp3
+  
   │   ├── song.lrc
+  
   │   ├── song.txt
+  
   │   ├── song.png
+  
   ├── leaderboard.db    # Local database (automatically created)
+  
   ├──Karaoke_icon.ico   # Application icon
+  
   ├──README.md          # This file
 
 ## Executable version
