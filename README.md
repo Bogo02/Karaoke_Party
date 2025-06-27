@@ -32,7 +32,7 @@ Out of these, the following libraries are not implicitly included in Python and 
 - 'pygame'
 - 'pyaudio'
 - 'numpy'
-- 'PIL'
+- 'PIL'(Pillow)
 
 They can be installed with the command: pip install pygame pyaudio numpy pillow
 
